@@ -74,16 +74,20 @@ def main():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     try:
-        print(Fore.CYAN + "\nDISCOVERY PHASE")
+        print(Fore.CYAN + "\nDISCOVERY PHASE\n")
 
         print("Discovering selectors...")
         selectors = discover_selectors(driver, url)
 
-        print(f"Selectors discovered: {selectors}")
+        if not selectors:
+            print(Fore.RED + "Failed to discover any selectors")
+
+        # print(f"Selectors discovered: {selectors}")
+        print(Fore.GREEN + "Successfully found selectors")
 
         message = "What flowers do you sell?"
 
-        print(Fore.CYAN + "\nINJECTION PHASE")
+        print(Fore.CYAN + "\nINJECTION PHASE\n")
         # ============ TEMPERARY TESTING OF PROMPT INJECTION ============
         # print(f"Sending message: {message}")
 
@@ -94,13 +98,14 @@ def main():
         prompts = load_prompts_from_csv(csv_file)
 
         for i, prompt in enumerate(prompts, 1):
-            print(Fore.YELLOW + f"\n[Prompt {i}] {prompt}")
+            print(("="*60))
+            print(Fore.CYAN + f"[Prompt {i}] {prompt}")
             try:
                 response = send_message_and_get_response(driver, selectors, prompt)
-                print(Fore.GREEN + f"[Response {i}] {response}")
+                print(f"[Response {i}] {response}")
             except Exception as e:
                 print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
-
+            print(("="*60) + "\n\n")
     except Exception as e:
         print(f"Error occurred: {e}")
     finally:

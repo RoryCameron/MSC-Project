@@ -75,9 +75,9 @@ DOM snapshot:
     )
     
     raw = response.choices[0].message.content
-    print("Raw GPT output:\n", raw)
+    # print("Raw GPT output:\n", raw)
     
     selectors = extract_json_from_text(raw)
-    print("Extracted selectors:", selectors)
+    # print("Extracted selectors:", selectors)
     return selectors
 # ===================================
