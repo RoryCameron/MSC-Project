@@ -18,6 +18,8 @@ from prompt_injector import send_message_and_get_response
 
 import pyfiglet
 from colorama import init, Fore, Style
+
+import csv
 # =================================
 
 
@@ -27,6 +29,25 @@ init(autoreset=True)
 def print_banner():
     ascii_art = pyfiglet.figlet_format("ZeroPrompt", font="slant")
     print("\n\n" + Fore.CYAN + ascii_art + "\n\n")
+
+
+
+# ============ Load seed prompts from csv ============
+def load_prompts_from_csv(file_path):
+    prompts = []
+    try:
+        with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader, None)
+            for row in reader:
+                if row:
+                    prompts.append(row[0])
+        return prompts
+    except Exception as e:
+        print(Fore.RED + f"Failed to load prompts from CSV: {e}")
+        sys.exit(1)
+# ====================================================
+
 
 
 # ============ Main Execution ============
@@ -63,10 +84,22 @@ def main():
         message = "What flowers do you sell?"
 
         print(Fore.CYAN + "\nINJECTION PHASE")
-        print(f"Sending message: {message}")
+        # ============ TEMPERARY TESTING OF PROMPT INJECTION ============
+        # print(f"Sending message: {message}")
 
-        response = send_message_and_get_response(driver, selectors, message)
-        print(f"Chatbot responded: {response}")
+        # response = send_message_and_get_response(driver, selectors, message)
+        # print(f"Chatbot responded: {response}")
+
+        csv_file = "seed-prompts.csv"
+        prompts = load_prompts_from_csv(csv_file)
+
+        for i, prompt in enumerate(prompts, 1):
+            print(Fore.YELLOW + f"\n[Prompt {i}] {prompt}")
+            try:
+                response = send_message_and_get_response(driver, selectors, prompt)
+                print(Fore.GREEN + f"[Response {i}] {response}")
+            except Exception as e:
+                print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
 
     except Exception as e:
         print(f"Error occurred: {e}")
