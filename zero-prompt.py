@@ -14,13 +14,27 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 from discovery import discover_selectors
-from promptInjector import send_message_and_get_response
+from prompt_injector import send_message_and_get_response
+
+import pyfiglet
+from colorama import init, Fore, Style
 # =================================
+
+
+
+# Lol
+init(autoreset=True)
+def print_banner():
+    ascii_art = pyfiglet.figlet_format("ZeroPrompt", font="slant")
+    print("\n\n" + Fore.CYAN + ascii_art + "\n\n")
 
 
 # ============ Main Execution ============
 
 def main():
+
+    print_banner()
+
     if len(sys.argv) < 2:
         print("Usage: python zeroPrompt.py <url>")
         sys.exit(1)
@@ -39,19 +53,23 @@ def main():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     try:
-        print("[+] Discovering selectors...")
+        print(Fore.CYAN + "\nDISCOVERY PHASE")
+
+        print("Discovering selectors...")
         selectors = discover_selectors(driver, url)
 
-        print(f"[+] Selectors discovered: {selectors}")
+        print(f"Selectors discovered: {selectors}")
 
         message = "What flowers do you sell?"
-        print(f"[+] Sending message: {message}")
+
+        print(Fore.CYAN + "\nINJECTION PHASE")
+        print(f"Sending message: {message}")
 
         response = send_message_and_get_response(driver, selectors, message)
-        print(f"[+] Chatbot responded: {response}")
+        print(f"Chatbot responded: {response}")
 
     except Exception as e:
-        print(f"[!] Error occurred: {e}")
+        print(f"Error occurred: {e}")
     finally:
         driver.quit()
 
