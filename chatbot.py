@@ -2,7 +2,7 @@
 File: chatbot.py
 Author: Rory Cameron
 Date: 23/06/2025
-Description: Basic implementation of GPT chatbot, uses GPT generated system prompt to imitate a real customer service bot with system guardrails
+Description: Basic implementation of GPT chatbot. Uses GPT generated system prompt to imitate a real customer service bot with system guardrails
 """
 
 
