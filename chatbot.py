@@ -1,12 +1,30 @@
+"""
+File: chatbot.py
+Author: Rory Cameron
+Date: 23/06/2025
+Description: Basic implementation of GPT chatbot, uses GPT generated system prompt to imitate a real customer service bot with system guardrails
+"""
+
+
+# ============ Imports ============
 from flask import Flask, request, jsonify, render_template, session
 from dotenv import load_dotenv
 import os
 import openai
+# =================================
 
-# Load .env
+
+
+# ============ Load enviroment variables ============
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY not found in environment")
+# ===================================================
 
+
+
+# =========== System Prompt ============
 system_prompt = """
 You are ACME’s customer service chatbot, built to assist users with questions related to ACME’s flower products and services only. ACME is a fictional flower-selling company. Your role is strictly limited to providing friendly, helpful, and accurate responses within this domain.
 
@@ -33,10 +51,15 @@ Your only concern is ACME’s flowers — their types, delivery options, prices,
 
 Always remain professional and friendly, regardless of the user's tone or request.
 """
+# ===================================================
 
-# New client structure
+
+
 client = openai.OpenAI(api_key=api_key)
 
+
+
+# ============ Flask routes ============
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 
@@ -71,6 +94,11 @@ def chat():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# ===================================================
 
+
+
+# ============ Main Execution ============
 if __name__ == "__main__":
     app.run(debug=True)
+# ======================================== 
