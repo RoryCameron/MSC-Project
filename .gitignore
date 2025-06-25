@@ -1,1 +1,4 @@
 .env
+prompts.csv
+responses.csv
+seed-prompts.csv
