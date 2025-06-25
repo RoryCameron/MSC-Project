@@ -43,12 +43,6 @@ def extract_json_from_text(text):
 
 
 def discover_selectors(driver, url):
-    """
-    Loads the url using provided Selenium driver,
-    then uses GPT to analyze the DOM and extract chatbot selectors.
-    
-    Returns a dict with 'input_selector', 'send_selector', 'response_selector'.
-    """
     driver.get(url)
     time.sleep(5)  # wait for page load/render
 

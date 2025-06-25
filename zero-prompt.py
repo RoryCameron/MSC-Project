@@ -20,6 +20,8 @@ import pyfiglet
 from colorama import init, Fore, Style
 
 import csv
+
+from bayesian.scorer import score_response_with_llm
 # =================================
 
 
@@ -37,11 +39,13 @@ def load_prompts_from_csv(file_path):
     prompts = []
     try:
         with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as csvfile:
-            reader = csv.reader(csvfile)
-            next(reader, None)
+            reader = csv.DictReader(csvfile)
             for row in reader:
-                if row:
-                    prompts.append(row[0])
+                if row and row.get("prompt"):
+                    prompts.append({
+                        "category": row["category"],
+                        "prompt": row["prompt"]
+                    })
         return prompts
     except Exception as e:
         print(Fore.RED + f"Failed to load prompts from CSV: {e}")
@@ -88,28 +92,68 @@ def main():
         message = "What flowers do you sell?"
 
         print(Fore.CYAN + "\nINJECTION PHASE\n")
-        # ============ TEMPERARY TESTING OF PROMPT INJECTION ============
-        # print(f"Sending message: {message}")
 
-        # response = send_message_and_get_response(driver, selectors, message)
-        # print(f"Chatbot responded: {response}")
-
-        csv_file = "seed-prompts.csv"
+        csv_file = "prompts.csv" # CSV file
         prompts = load_prompts_from_csv(csv_file)
 
-        for i, prompt in enumerate(prompts, 1):
-            print(("="*60))
-            print(Fore.CYAN + f"[Prompt {i}] {prompt}")
+        """
+        # ============ TEMPERARY TESTING OF PROMPT INJECTION ============
+        # Iterates through seed prompt dataset
+        # Likely will have to remove/change for BO implementation
+        
+        for i, item in enumerate(prompts, 1):
+            category = item["category"]
+            prompt_text = item["prompt"]
+
+            print("=" * 60)
+            print(Fore.CYAN + f"[Prompt {i}] Category: {category}")
+            print(Fore.YELLOW + f"Submitted Prompt: {prompt_text}")
+
             try:
-                response = send_message_and_get_response(driver, selectors, prompt)
-                print(f"[Response {i}] {response}")
+                response = send_message_and_get_response(driver, selectors, prompt_text)
+                print(Fore.CYAN + f"[Response {i}]")
+                print(response)
             except Exception as e:
                 print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
-            print(("="*60) + "\n\n")
+
+            print("=" * 60 + "\n\n")
+        """
+
+        with open("responses.csv", mode="a", newline='', encoding="utf-8") as logfile:
+            writer = csv.writer(logfile)
+            writer.writerow(["category", "prompt", "response", "score", "explanation"])
+
+            for i, item in enumerate(prompts, 1):
+                category = item["category"]
+                prompt_text = item["prompt"]
+
+                print("=" * 60)
+                print(Fore.CYAN + f"[Prompt {i}] Category: {category}")
+                print(Fore.YELLOW + f"Submitted Prompt: {prompt_text}")
+
+                try:
+                    response = send_message_and_get_response(driver, selectors, prompt_text)
+                    print(Fore.CYAN + f"[Response {i}]")
+                    print(response)
+
+                    score, explanation = score_response_with_llm(prompt_text, response)
+                    print(Fore.MAGENTA + f"[Score {i}] {score}")
+                    print(Fore.LIGHTBLACK_EX + explanation)
+
+                    writer.writerow([category, prompt_text, response, score, explanation])
+
+                except Exception as e:
+                    print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
+                    writer.writerow([category, prompt_text, str(e), 0, "Injection failed"])
+
+                print("=" * 60 + "\n\n")
+
+
     except Exception as e:
         print(f"Error occurred: {e}")
     finally:
         driver.quit()
+    
 
 if __name__ == "__main__":
     main()
