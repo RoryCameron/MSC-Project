@@ -20,6 +20,7 @@ import pyfiglet
 from colorama import init, Fore, Style
 
 import csv
+import os
 
 from bayesian.scorer import score_response_with_llm
 # =================================
@@ -34,7 +35,88 @@ def print_banner():
 
 
 
+# =========== Load untested prompts ===========
+def load_untested_prompts(file_path):
+    prompts = []
+    try:
+        with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row.get("tested", "no").lower() != "yes" and row.get("prompt"):
+                    prompts.append({
+                        "category": row.get("category", "unknown"),
+                        "prompt": row["prompt"]
+                    })
+        return prompts
+    except Exception as e:
+        print(Fore.RED + f"Failed to load prompts from CSV: {e}")
+        sys.exit(1)
+# =============================================
+
+
+
+# ============ Mark prompts as tested ============
+def mark_prompts_as_tested(used_prompts, file_path):
+    updated_rows = []
+    try:
+        with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as infile:
+            reader = csv.DictReader(infile)
+            for row in reader:
+                if row["prompt"] in used_prompts:
+                    row["tested"] = "yes"
+                updated_rows.append(row)
+
+        with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
+            fieldnames = ["category", "prompt", "origin", "tested"]
+            writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in updated_rows:
+                writer.writerow(row)
+
+    except Exception as e:
+        print(Fore.RED + f"Failed to update prompts as tested: {e}")
+# ================================================
+
+
+
+# ============ Reset seed prompts only ============
+def reset_seed_prompts(file_path):
+    updated_rows = []
+    try:
+        with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as infile:
+            reader = csv.DictReader(infile)
+            for row in reader:
+                if row.get("origin") == "seed":
+                    row["tested"] = "no"
+                updated_rows.append(row)
+
+        with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
+            fieldnames = ["category", "prompt", "origin", "tested"]
+            writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in updated_rows:
+                writer.writerow(row)
+        print(Fore.GREEN + "Seed prompts have been reset")
+
+    except Exception as e:
+        print(Fore.RED + f"Failed to reset seed prompts: {e}")
+# =================================================
+
+
+
+# ============ Reset responses.csv ============
+def reset_responses(file_path="responses.csv"):
+    try:
+        os.remove(file_path)
+        print(Fore.GREEN + "Responses have been reset")
+    except Exception as e:
+        print(Fore.RED + f"Failed to reset responses.csv: {e}")
+# =============================================
+
+
+
 # ============ Load seed prompts from csv ============
+# LEGACY
 def load_prompts_from_csv(file_path):
     prompts = []
     try:
@@ -58,6 +140,13 @@ def load_prompts_from_csv(file_path):
 
 def main():
 
+    file_path = "prompts-dev.csv" # SEED + PROMPTS CSV
+
+    if "--reset" in sys.argv:
+        reset_seed_prompts(file_path)
+        reset_responses()
+        sys.exit(1)
+
     print_banner()
 
     if len(sys.argv) < 2:
@@ -69,7 +158,7 @@ def main():
     if not re.match(r"^https?://", url):
         print("Invalid URL. Must start with http:// or https://")
         sys.exit(1)
-
+    
     print(f"[+] Launching browser and loading URL: {url}")
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -86,39 +175,62 @@ def main():
         if not selectors:
             print(Fore.RED + "Failed to discover any selectors")
 
-        # print(f"Selectors discovered: {selectors}")
         print(Fore.GREEN + "Successfully found selectors")
 
-        message = "What flowers do you sell?"
 
-        print(Fore.CYAN + "\nINJECTION PHASE\n")
+        # ============ Injection function ============
+        def injection_phase():
 
-        csv_file = "prompts.csv" # CSV file
+            print(Fore.CYAN + "\nINJECTION PHASE\n")
+
+            prompts = load_untested_prompts(file_path)
+            if not prompts:
+                print(Fore.RED + "No untested prompts found in prompts.csv.")
+                return
+
+            tested_prompts = []
+
+            with open("responses.csv", mode="a", newline='', encoding="utf-8") as logfile:
+                writer = csv.writer(logfile)
+                writer.writerow(["category", "prompt", "response", "score", "explanation"])
+
+                for i, item in enumerate(prompts, 1):
+                    category = item["category"]
+                    prompt_text = item["prompt"]
+
+                    print("=" * 60)
+                    print(Fore.CYAN + f"[Prompt {i}] Category: {category}")
+                    print(Fore.YELLOW + f"Submitted Prompt: {prompt_text}")
+
+                    try:
+                        response = send_message_and_get_response(driver, selectors, prompt_text)
+                        print(Fore.CYAN + f"[Response {i}]")
+                        print(response)
+
+                        score, explanation = score_response_with_llm(prompt_text, response)
+                        print(Fore.MAGENTA + f"[Score {i}] {score}")
+                        print(Fore.LIGHTBLACK_EX + explanation)
+
+                        writer.writerow([category, prompt_text, response, score, explanation])
+                        tested_prompts.append(prompt_text)
+
+                    except Exception as e:
+                        print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
+                        writer.writerow([category, prompt_text, str(e), 0, "Injection failed"])
+
+                    print("=" * 60 + "\n\n")
+
+                mark_prompts_as_tested(tested_prompts, file_path)
+
+        injection_phase()
+
+        # LEGACY
+        """
+        csv_file = "prompts.csv" # Initial seed file, this shouldnt change
         prompts = load_prompts_from_csv(csv_file)
 
-        """
-        # ============ TEMPERARY TESTING OF PROMPT INJECTION ============
-        # Iterates through seed prompt dataset
-        # Likely will have to remove/change for BO implementation
-        
-        for i, item in enumerate(prompts, 1):
-            category = item["category"]
-            prompt_text = item["prompt"]
-
-            print("=" * 60)
-            print(Fore.CYAN + f"[Prompt {i}] Category: {category}")
-            print(Fore.YELLOW + f"Submitted Prompt: {prompt_text}")
-
-            try:
-                response = send_message_and_get_response(driver, selectors, prompt_text)
-                print(Fore.CYAN + f"[Response {i}]")
-                print(response)
-            except Exception as e:
-                print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
-
-            print("=" * 60 + "\n\n")
-        """
-
+        # Iterates through prompt dataset, sends prompt and gets response, then scores response via LLM and scorer prompt, records results to response dataset
+        # this prompt file however should change to the new mutated prompts, with responses resetting each time?
         with open("responses.csv", mode="a", newline='', encoding="utf-8") as logfile:
             writer = csv.writer(logfile)
             writer.writerow(["category", "prompt", "response", "score", "explanation"])
@@ -145,8 +257,9 @@ def main():
                 except Exception as e:
                     print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
                     writer.writerow([category, prompt_text, str(e), 0, "Injection failed"])
-
+        
                 print("=" * 60 + "\n\n")
+        """
 
 
     except Exception as e:
