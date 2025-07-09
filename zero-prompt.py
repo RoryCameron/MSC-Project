@@ -3,6 +3,15 @@ File: promptInjector.py
 Author: Rory Cameron
 Date: 23/06/2025
 Description: Main CLI entry point
+Script overview:
+- LLM discovers input selectors via discovery.py
+- Seed prompt from prompts-dev.csv are injected, assigned yes to tested
+- responses are scored via scorer.py, responses and scores etc stored in responses.csv
+- ====== Unsure yet ======
+- responses.csv sent to mutator.py to mutate new prompts based on scores?
+- mutated prompts sent to optimizor.py to suggest best next prompts?
+- new prompts added to prompts-dev.csv assigned no to tested?
+- process repeats?
 """
 
 # ============ Imports ============
@@ -56,18 +65,20 @@ def load_untested_prompts(file_path):
 
 
 # ============ Mark prompts as tested ============
-def mark_prompts_as_tested(used_prompts, file_path):
+def mark_prompts_as_tested(used_prompts, file_path, used_scores): # Not most efficient using 2 parallel arrays but works for now
     updated_rows = []
     try:
         with open(file_path, mode='r', encoding='utf-8-sig', errors='replace') as infile:
             reader = csv.DictReader(infile)
             for row in reader:
                 if row["prompt"] in used_prompts:
+                    idx = used_prompts.index(row["prompt"])
                     row["tested"] = "yes"
+                    row["score"] = str(used_scores[idx])
                 updated_rows.append(row)
 
         with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
-            fieldnames = ["category", "prompt", "origin", "tested"]
+            fieldnames = ["category", "prompt", "origin", "tested","score"]
             writer = csv.DictWriter(outfile, fieldnames=fieldnames)
             writer.writeheader()
             for row in updated_rows:
@@ -88,10 +99,11 @@ def reset_seed_prompts(file_path):
             for row in reader:
                 if row.get("origin") == "seed":
                     row["tested"] = "no"
+                    row["score"] = ""
                 updated_rows.append(row)
 
         with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
-            fieldnames = ["category", "prompt", "origin", "tested"]
+            fieldnames = ["category", "prompt", "origin", "tested", "score"]
             writer = csv.DictWriter(outfile, fieldnames=fieldnames)
             writer.writeheader()
             for row in updated_rows:
@@ -189,6 +201,7 @@ def main():
                 return
 
             tested_prompts = []
+            tested_scores = []
 
             with open("responses.csv", mode="a", newline='', encoding="utf-8") as logfile:
                 writer = csv.writer(logfile)
@@ -213,6 +226,7 @@ def main():
 
                         writer.writerow([category, prompt_text, response, score, explanation])
                         tested_prompts.append(prompt_text)
+                        tested_scores.append(score)
 
                     except Exception as e:
                         print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
@@ -220,7 +234,7 @@ def main():
 
                     print("=" * 60 + "\n\n")
 
-                mark_prompts_as_tested(tested_prompts, file_path)
+                mark_prompts_as_tested(tested_prompts, file_path, tested_scores)
 
         injection_phase()
 
