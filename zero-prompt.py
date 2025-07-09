@@ -100,7 +100,7 @@ def reset_seed_prompts(file_path):
                 if row.get("origin") == "seed":
                     row["tested"] = "no"
                     row["score"] = ""
-                updated_rows.append(row)
+                    updated_rows.append(row)
 
         with open(file_path, mode='w', newline='', encoding='utf-8') as outfile:
             fieldnames = ["category", "prompt", "origin", "tested", "score"]
