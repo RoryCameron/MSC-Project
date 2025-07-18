@@ -46,6 +46,10 @@ Here is the input prompt to mutate:
 
 \"\"\"{prompt_text}\"\"\"
 
+Here is the response this prompt resulted in:
+
+\"\"\"{response_text}\"\"\"
+
 Here is the score that this prompt was given:
 
 \"\"\"{score}\"\"\"
