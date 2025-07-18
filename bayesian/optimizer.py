@@ -2,5 +2,5 @@
 File: promptInjector.py
 Author: Rory Cameron
 Date: 30/06/2025
-Description:
+Description: Bayesian optimization module
 """
