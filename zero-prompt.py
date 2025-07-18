@@ -238,45 +238,7 @@ def main():
                 mark_prompts_as_tested(tested_prompts, file_path, tested_scores)
 
         injection_phase()
-
-        # LEGACY
-        """
-        csv_file = "prompts.csv" # Initial seed file, this shouldnt change
-        prompts = load_prompts_from_csv(csv_file)
-
-        # Iterates through prompt dataset, sends prompt and gets response, then scores response via LLM and scorer prompt, records results to response dataset
-        # this prompt file however should change to the new mutated prompts, with responses resetting each time?
-        with open("responses.csv", mode="a", newline='', encoding="utf-8") as logfile:
-            writer = csv.writer(logfile)
-            writer.writerow(["category", "prompt", "response", "score", "explanation"])
-
-            for i, item in enumerate(prompts, 1):
-                category = item["category"]
-                prompt_text = item["prompt"]
-
-                print("=" * 60)
-                print(Fore.CYAN + f"[Prompt {i}] Category: {category}")
-                print(Fore.YELLOW + f"Submitted Prompt: {prompt_text}")
-
-                try:
-                    response = send_message_and_get_response(driver, selectors, prompt_text)
-                    print(Fore.CYAN + f"[Response {i}]")
-                    print(response)
-
-                    score, explanation = score_response_with_llm(prompt_text, response)
-                    print(Fore.MAGENTA + f"[Score {i}] {score}")
-                    print(Fore.LIGHTBLACK_EX + explanation)
-
-                    writer.writerow([category, prompt_text, response, score, explanation])
-
-                except Exception as e:
-                    print(Fore.RED + f"[Error {i}] Failed to inject prompt: {e}")
-                    writer.writerow([category, prompt_text, str(e), 0, "Injection failed"])
         
-                print("=" * 60 + "\n\n")
-        """
-
-
     except Exception as e:
         print(f"Error occurred: {e}")
     finally:
