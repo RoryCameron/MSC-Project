@@ -16,65 +16,90 @@ from sentence_transformers import SentenceTransformer
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
-import csv
+from typing import List, Tuple
+
+from bayesian.mutator import mutate_prompt_with_llm
+
+from colorama import init, Fore, Style
 # =================================
 
 
 
-# ============ Config ============
-PROMPT_FILE = "prompts.dev.csv" #Harcoded change later to be passed in function
-TOP_K = 10  # Number of new prompts to suggest
-MODEL_NAME = "all-MiniLM-L6-v2"
-# =================================
+class BayesianOptimizer:
+    def __init__(self):
+        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        self.model = None
+        self.kernel = RBF(
+            length_scale=1.0,
+            length_scale_bounds=(1e-5, 1e5)  # Adjusted bounds
+        ) + WhiteKernel(
+            noise_level=1.0,
+            noise_level_bounds=(1e-5, 1e5)   # Adjusted bounds
+        )
 
+    def train(self, prompts_dev_path: str) -> bool:
+        
+        """Train on your existing prompts-dev.csv"""
 
+        print(Fore.RED + "TEST: BO TRAINING FUNCTION")
+        try:
+            df = pd.read_csv(prompts_dev_path)
+            tested = df[(df['tested'] == 'yes') & (df['score'].notna())]
+            
+            if len(tested) < 5:
+                return False
+                
+            X = self.embedder.encode(tested['prompt'].tolist())
+            y = tested['score'].astype(float).values
+            self.model = GaussianProcessRegressor(kernel=self.kernel).fit(X, y)
+            print(Fore.RED + "TEST: END OF BO TRAINING FUNCTION")
+            return True
+        except Exception as e:
+            print(f"[BO Training Error] {e}")
+            return False
 
-def load_prompts():
-    df = pd.read_csv(PROMPT_FILE)
-    df["prompt"] = df["prompt"].astype(str)
-    return df
+    def run_optimization_cycle(self, responses_path: str, prompts_dev_path: str) -> List[Tuple[str, str]]:
 
+        print(Fore.RED + "TEST: BO OPTIMIZATION CYCLE")
 
+        """
+        Full cycle including mutation call
+        Returns: List of (prompt, category) tuples
+        """
+        # 1. Load medium-scoring prompts (5-7)
+        df = pd.read_csv(responses_path)
+        candidates = df[(df['score'] >= 1) & (df['score'] <= 10)] # Change this for what range of prompts are mutated
+        
+        # 2. Call mutator.py for each candidate
+        mutations = []
+        for _, row in candidates.iterrows():
+            # ===== MUTATOR.PY CALL =====
+            mutated = mutate_prompt_with_llm(
+                row['prompt'],
+                row['response'],
+                row['score']
+            )
+            
+            # print(Fore.RED + "TEST: MUTATED PROMPTS IN OPTIMIZER " + mutated)
 
-def get_embeddings(prompts, model):
-    return model.encode(prompts, show_progress_bar=False)
-
-
-
-def train_bo_model(X, y):
-    kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
-
-    model = GaussianProcessRegressor(kernel=kernel, alpha=1e-6, normalize_y=True)
-    model.fit(X,y)
-    return model
-
-
-
-def acquisition_ucb(mean, std, beta=2.0):
-    return mean + beta + std
-
-
-
-def select_canditates(df, model, embedder, top_k=TOP_K):
-    untested = df[df["tested"].str.lower() == "no"].copy()
-
-    if untested.empty:
-        print("No untested prompts left")
+            if isinstance(mutated, list):  # Success case
+                mutations.extend([(m, row['category']) for m in mutated])
+        
+        # 3. Bayesian Selection
+        if self.train(prompts_dev_path) and mutations:
+            prompts = [m[0] for m in mutations]
+            selected = self.select_best(prompts)
+            return [(p, cat) for p, (_, cat) in zip(selected, mutations) if p in selected]
         return []
 
-    X_unseen = get_embeddings(untested["prompt"].tolist(), embedder)
-    mean, std = model.predict(X_unseen, return_std=True)
-    scores = acquisition_ucb(mean, std)
+    def select_best(self, prompts: List[str]) -> List[str]:
 
-    untested["acquisition_score"] = scores
-    top = untested.sort_values("acquisition_score", ascending=False).head(top_k)
-    return top[["prompt", "category"]].values.tolist()
+        print(Fore.RED + "TEST: BO SELECT BEST")
 
-
-
-def append_new_prompts(candidates):
-    with open(PROMPT_FILE, mode="a", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        for prompt, category in candidates:
-            writer.writerow([category, prompt, "bo", "no"])
-    print(f"[+] Appended {len(candidates)} BO-generated prompts to {PROMPT_FILE}")
+        """Select top candidates using UCB"""
+        if not self.model:
+            return prompts[:3]
+            
+        X = self.embedder.encode(prompts)
+        means, stds = self.model.predict(X, return_std=True)
+        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-3:]]
