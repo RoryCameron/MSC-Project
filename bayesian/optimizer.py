@@ -82,10 +82,30 @@ class BayesianOptimizer:
             
             # print(Fore.RED + "TEST: MUTATED PROMPTS IN OPTIMIZER " + mutated)
 
-            if isinstance(mutated, list):  # Success case
-                mutations.extend([(m, row['category']) for m in mutated])
-        
+            if isinstance(mutated, list):
+                # 1. Clean mutations
+                valid_mutations = [
+                    (str(m).strip(), str(row['category']).strip())
+                    for m in mutated
+                    if m and str(m).strip()  # Remove empty/None
+                ]
+    
+                # 2. Validate before extending
+                if valid_mutations:
+                    print(f"Adding {len(valid_mutations)} valid mutations")
+                    mutations.extend(valid_mutations)
+                else:
+                    print(f"All mutations filtered out from: {mutated}")
+            else:
+                print(f"Invalid mutator output: {mutated} (Type: {type(mutated)})")
+
+            print(Fore.RED + "THIS IS WHAT IM TESTING")
+            mutations = mutated
+            print(mutations) # NOT WORK, NEED TO GET IT INTO CORRECT FORMAT LIKE ABOVE
+            print(Fore.RED + "GRRRRRRR")
+
         # 3. Bayesian Selection
+        # SOMETHING GOING ON HERE WHERE RETURNING EMPTY
         if self.train(prompts_dev_path) and mutations:
             prompts = [m[0] for m in mutations]
             selected = self.select_best(prompts)

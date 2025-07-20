@@ -272,6 +272,9 @@ def main():
 
             print(Fore.RED + "TEST: UPDATING PROMPTS-DEV")
             # 5. Update prompts-dev.csv
+
+            # THIS NEEDS TO BE CHECKED
+            print(new_prompts) # NEW PROMPTS IS EMPTY
             if new_prompts:
                 with open("prompts-dev.csv", "a", newline='') as f:
                     writer = csv.writer(f)
