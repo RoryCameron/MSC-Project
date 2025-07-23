@@ -38,11 +38,10 @@ class BayesianOptimizer:
             noise_level_bounds=(1e-5, 1e5)   # Adjusted bounds
         )
 
+
     def train(self, prompts_dev_path: str) -> bool:
         
-        """Train on your existing prompts-dev.csv"""
-
-        print(Fore.RED + "TEST: BO TRAINING FUNCTION")
+        # print(Fore.RED + "TEST: BO TRAINING FUNCTION")
         try:
             df = pd.read_csv(prompts_dev_path)
             tested = df[(df['tested'] == 'yes') & (df['score'].notna())]
@@ -53,20 +52,17 @@ class BayesianOptimizer:
             X = self.embedder.encode(tested['prompt'].tolist())
             y = tested['score'].astype(float).values
             self.model = GaussianProcessRegressor(kernel=self.kernel).fit(X, y)
-            print(Fore.RED + "TEST: END OF BO TRAINING FUNCTION")
+            # print(Fore.RED + "TEST: END OF BO TRAINING FUNCTION")
             return True
         except Exception as e:
             print(f"[BO Training Error] {e}")
             return False
 
+
     def run_optimization_cycle(self, responses_path: str, prompts_dev_path: str) -> List[Tuple[str, str]]:
 
-        print(Fore.RED + "TEST: BO OPTIMIZATION CYCLE")
+        # print(Fore.RED + "TEST: BO OPTIMIZATION CYCLE")
 
-        """
-        Full cycle including mutation call
-        Returns: List of (prompt, category) tuples
-        """
         # 1. Load medium-scoring prompts (5-7)
         df = pd.read_csv(responses_path)
 
@@ -85,15 +81,11 @@ class BayesianOptimizer:
                 row['score']
             )
             
-            print(Fore.BLUE + "DEBUG: MUTATED")
-            print(mutated)
+            # print(Fore.BLUE + "DEBUG: MUTATED")
+            # print(mutated)
             # print(Fore.RED + "TEST: MUTATED PROMPTS IN OPTIMIZER " + mutated)
-
-            """
-            if isinstance(mutated, str):
-                mutated = [mutated]
-                # NEED SOMETHING TO FIX HERE
-            """
+            
+            # This section is causing some syntax errors, needs fixing
             if isinstance(mutated, str):
                 try:
                     # Try parsing first in case it's a clean list string
@@ -108,7 +100,7 @@ class BayesianOptimizer:
                             if p.strip()
                         ]
                 except Exception as e:
-                    print(f"Failed to parse mutated string: {e}")
+                    print(f"Failed to parse mutated string: {e}") # Seems to throw numerous errors
                     mutated = [
                         p.strip()
                         for p in mutated.split('"""')
@@ -118,28 +110,19 @@ class BayesianOptimizer:
             valid_mutations = [
                 (str(m).strip(), str(row['category']).strip())
                 for m in mutated
-                if m and str(m).strip()  # Remove empty/None
+                if m and str(m).strip()
             ]
             
-            print(Fore.RED + "DEBUG: WE ARE IN ISINSTANCE")
-
             # 2. Validate before extending
             if valid_mutations:
-                print(Fore.RED + "IS this going to run for valid_mutations?")
                 print(f"Adding {len(valid_mutations)} valid mutations")
                 mutations.extend(valid_mutations)
             else:
                 print(f"All mutations filtered out from: {mutated}")
-            # else:
-                # print(f"Invalid mutator output: {mutated} (Type: {type(mutated)})")
 
-            print(Fore.RED + "THIS IS WHAT IM TESTING ================")
-            # mutations = mutated
-            print(mutations) # NOT WORK, NEED TO GET IT INTO CORRECT FORMAT LIKE ABOVE
-            print(Fore.RED + "GRRRRRRR")
+            # print(mutations)
 
         # 3. Bayesian Selection
-        # SOMETHING GOING ON HERE WHERE RETURNING EMPTY
         if self.train(prompts_dev_path) and mutations:
             prompts = [m[0] for m in mutations]
             selected = self.select_best(prompts)
@@ -148,12 +131,12 @@ class BayesianOptimizer:
 
     def select_best(self, prompts: List[str]) -> List[str]:
 
-        print(Fore.RED + "TEST: BO SELECT BEST")
+        #print(Fore.RED + "TEST: BO SELECT BEST")
 
-        """Select top candidates using UCB"""
+        # Select top candidates using UCB
         if not self.model:
-            return prompts[:3]
+            return prompts[:3] # Change using CLI arg - selects top 3 prompts
             
         X = self.embedder.encode(prompts)
         means, stds = self.model.predict(X, return_std=True)
-        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-3:]]
+        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-3:]] # Change using CLI arg - selects top 3 prompts

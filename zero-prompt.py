@@ -28,7 +28,7 @@ from bayesian.optimizer import BayesianOptimizer
 import pandas as pd
 import numpy as np
 
-from results import
+from results import display_results
 # =================================
 
 
@@ -134,21 +134,18 @@ def reset_success(file_path="success_db.csv"):
 # =============================================
 
 
-# ============ Exists program after 3 successful prompts are found
+
+# ============ Exists program after set number of successful prompts found
 def check_for_success(success_count):
     if os.path.exists("success_db.csv"):
         try:
-            # Read CSV and handle headers if they exist
             success_df = pd.read_csv("success_db.csv")
                         
-            # If no headers exist, the score will be in the last column
             if 'score' not in success_df.columns:
                 success_df.columns = ['prompt', 'response', 'score'][:len(success_df.columns)]
                         
-            # Convert scores to numeric, forcing invalid values to NaN
             success_df['score'] = pd.to_numeric(success_df['score'], errors='coerce')
                         
-            # Count only valid scores >= 8 (drops NaN values)
             success_count = len(success_df[success_df['score'] >= 8].dropna())
         except Exception as e:
             print(f"Error reading success file: {e}")
@@ -156,8 +153,9 @@ def check_for_success(success_count):
     else:
         success_count = 0
                 
-    if success_count >= 3: # Change per testing
-        print("\n=== TERMINATING - 3+ SUCCESSES FOUND ===") # Format Better
+    if success_count >= 3: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
+        print(Fore.GREEN + "\nInjection Success - Generating Results") # Format Better
+        display_results("success_db.csv")
         sys.exit(0)
 
 # ============ Main Execution ============
@@ -253,22 +251,20 @@ def main():
 
         bo = BayesianOptimizer()
 
-        for cycle in range(1, 21):  # Max 20 cycles
+        # ============ BO Execution Loop ============
+        for cycle in range(1, 21): # Change to CLI arg - how many cycles of BO before quitting
             print(Fore.CYAN + f"\nCYCLE {cycle}\n")
             
-            # 1. Your existing injection phase
+            # Injects new round of untested prompts
             injection_phase()
 
             # 2. Load responses
-            # THIS SECTION BEEN ADDED
             try:
                 responses = pd.read_csv("responses.csv")
-                print(Fore.YELLOW + f"DEBUG: score column types before conversion:\n{responses.dtypes}\n")
 
                 responses['score'] = pd.to_numeric(responses['score'], errors='coerce')
-                print(Fore.YELLOW + f"DEBUG: score column types after conversion:\n{responses.dtypes}\n")
 
-                responses = responses.dropna(subset=['score'])  # Clean any NaNs before comparison
+                responses = responses.dropna(subset=['score'])
             except FileNotFoundError:
                 print("No responses found - skipping cycle")
                 continue
@@ -276,72 +272,44 @@ def main():
                 print(Fore.RED + f"Failed to load/clean responses.csv: {e}")
                 continue
 
-            # 3. Process successes
-            successes = responses[responses['score'] >= 8] # CHANGE VALUE FOR SUCCESS RATE
+            successes = responses[responses['score'] >= 8] # Change to CLI arg - What value considered a success
 
             if not successes.empty:
-                # Write with header only if file doesn't exist
                 write_header = not os.path.exists("success_db.csv")
                 successes.to_csv("success_db.csv", 
                                 mode='a', 
                                 header=write_header, 
                                 index=False)
-                print(f"Found {len(successes)} successful prompts")
+                print(Fore.GREEN + f"Found {len(successes)} successful prompts")
 
-            check_for_success(0)
+            check_for_success(0) # Checks if program found set successful prompts - No need to pass this zero
 
-            # 4. Run BO optimization
-            print(Fore.RED + "TEST: RUNNING BO OPTIMIZATION")
+            # ============ BO Optimization Phase ============
+            print(Fore.CYAN + "\nBO OPTIMIZATION PHASE\n")
             new_prompts = bo.run_optimization_cycle(
                 responses_path="responses.csv",
                 prompts_dev_path="prompts-dev.csv"
             )
 
-            # print(Fore.RED + "TEST: NEW PROMPTS" + new_prompts)
-            print(Fore.RED + "TEST: NEW PROMPTS")
+            # Ressting responses.csv after every round
+            with open("responses.csv", "w", newline='', encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["category", "prompt", "response", "score", "explanation"])
 
-            print(Fore.RED + "TEST: UPDATING PROMPTS-DEV")
-            # 5. Update prompts-dev.csv
 
-            # THIS NEEDS TO BE CHECKED
-            print(new_prompts)
+            # Updating prompts-dev.csv
             if new_prompts:
                 with open("prompts-dev.csv", "a", newline='') as f:
                     writer = csv.writer(f)
                     for prompt, category in new_prompts:
                         writer.writerow([category, prompt, "BO", "no", ""])
                 print(f"Added {len(new_prompts)} BO-optimized prompts")
-
-            # 6. Check termination (3+ successes)
-            # success_count = 0
+            else:
+                print(Fore.RED + "No new prompts generated, Closing down for stealth and generating results") # Implement better way of dealing with 0 scores
+                display_results("success_db.csv")
+                sys.exit(0)
 
             # check_for_success(0) Dont think i need this
-
-            """
-            if os.path.exists("success_db.csv"):
-                try:
-                    # Read CSV and handle headers if they exist
-                    success_df = pd.read_csv("success_db.csv")
-                    
-                    # If no headers exist, the score will be in the last column
-                    if 'score' not in success_df.columns:
-                        success_df.columns = ['prompt', 'response', 'score'][:len(success_df.columns)]
-                    
-                    # Convert scores to numeric, forcing invalid values to NaN
-                    success_df['score'] = pd.to_numeric(success_df['score'], errors='coerce')
-                    
-                    # Count only valid scores >= 8 (drops NaN values)
-                    success_count = len(success_df[success_df['score'] >= 8].dropna())
-                except Exception as e:
-                    print(f"Error reading success file: {e}")
-                    success_count = 0
-            else:
-                success_count = 0
-            
-            if success_count >= 3:
-                print("\n=== TERMINATING - 3+ SUCCESSES FOUND ===")
-                break
-            """
 
     except Exception as e:
         print(f"Error occurred: {e}")
