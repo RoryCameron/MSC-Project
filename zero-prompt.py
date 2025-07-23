@@ -3,6 +3,7 @@ File: promptInjector.py
 Author: Rory Cameron
 Date: 23/06/2025
 Description: Main CLI entry point, Main execution loop contained here
+"""
 
 # ============ Imports ============
 import sys
