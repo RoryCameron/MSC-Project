@@ -21,6 +21,7 @@ from typing import List, Tuple
 from bayesian.mutator import mutate_prompt_with_llm
 
 from colorama import init, Fore, Style
+import ast
 # =================================
 
 
@@ -68,6 +69,10 @@ class BayesianOptimizer:
         """
         # 1. Load medium-scoring prompts (5-7)
         df = pd.read_csv(responses_path)
+
+        df['score'] = pd.to_numeric(df['score'], errors='coerce')
+        df = df.dropna(subset=['score'])
+
         candidates = df[(df['score'] >= 1) & (df['score'] <= 10)] # Change this for what range of prompts are mutated
         
         # 2. Call mutator.py for each candidate
@@ -80,27 +85,56 @@ class BayesianOptimizer:
                 row['score']
             )
             
+            print(Fore.BLUE + "DEBUG: MUTATED")
+            print(mutated)
             # print(Fore.RED + "TEST: MUTATED PROMPTS IN OPTIMIZER " + mutated)
 
-            if isinstance(mutated, list):
-                # 1. Clean mutations
-                valid_mutations = [
-                    (str(m).strip(), str(row['category']).strip())
-                    for m in mutated
-                    if m and str(m).strip()  # Remove empty/None
-                ]
-    
-                # 2. Validate before extending
-                if valid_mutations:
-                    print(f"Adding {len(valid_mutations)} valid mutations")
-                    mutations.extend(valid_mutations)
-                else:
-                    print(f"All mutations filtered out from: {mutated}")
-            else:
-                print(f"Invalid mutator output: {mutated} (Type: {type(mutated)})")
+            """
+            if isinstance(mutated, str):
+                mutated = [mutated]
+                # NEED SOMETHING TO FIX HERE
+            """
+            if isinstance(mutated, str):
+                try:
+                    # Try parsing first in case it's a clean list string
+                    parsed = ast.literal_eval(mutated)
+                    if isinstance(parsed, list):
+                        mutated = parsed
+                    else:
+                        # fallback: split manually by triple quotes or newlines
+                        mutated = [
+                            p.strip()
+                            for p in mutated.split('"""')
+                            if p.strip()
+                        ]
+                except Exception as e:
+                    print(f"Failed to parse mutated string: {e}")
+                    mutated = [
+                        p.strip()
+                        for p in mutated.split('"""')
+                        if p.strip()
+                    ]
 
-            print(Fore.RED + "THIS IS WHAT IM TESTING")
-            mutations = mutated
+            valid_mutations = [
+                (str(m).strip(), str(row['category']).strip())
+                for m in mutated
+                if m and str(m).strip()  # Remove empty/None
+            ]
+            
+            print(Fore.RED + "DEBUG: WE ARE IN ISINSTANCE")
+
+            # 2. Validate before extending
+            if valid_mutations:
+                print(Fore.RED + "IS this going to run for valid_mutations?")
+                print(f"Adding {len(valid_mutations)} valid mutations")
+                mutations.extend(valid_mutations)
+            else:
+                print(f"All mutations filtered out from: {mutated}")
+            # else:
+                # print(f"Invalid mutator output: {mutated} (Type: {type(mutated)})")
+
+            print(Fore.RED + "THIS IS WHAT IM TESTING ================")
+            # mutations = mutated
             print(mutations) # NOT WORK, NEED TO GET IT INTO CORRECT FORMAT LIKE ABOVE
             print(Fore.RED + "GRRRRRRR")
 
