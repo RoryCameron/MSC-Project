@@ -13,6 +13,10 @@ import os
 import csv
 import pyfiglet
 from colorama import init, Fore, Style
+import pandas as pd
+# import matplotlib.pyplot as plt
+import seaborn as sns
+import plotext as plt
 # =================================
 
 
@@ -21,6 +25,7 @@ init(autoreset=True)
 
 
 
+# ============ Display sucessful prompts in CLI ============
 # Implement way to show prompts-dev to show scores of all prompts, succesful or not
 def display_results(csv_path, max_rows=100):
     
@@ -74,7 +79,50 @@ def display_results(csv_path, max_rows=100):
 
         print(Fore.BLUE + "\n" + ("=" * 100))
 
+        # display_graph("prompts-dev.csv") # Needs cleaned up first
+# ==========================================================
+
+
+
+# ============ Display all prompt scores ============
+def display_graph(csv_path):
+    df = pd.read_csv(csv_path)
+
+    # Convert 'tested' to bool
+    df['tested'] = df['tested'].astype(str).str.lower().isin(['true', '1', 'yes'])
+
+    # Clean 'score' column
+    df['score'] = pd.to_numeric(df['score'], errors='coerce')
+
+    print("\n--- Distribution of Scores ---")
+    total_prompts = len(df)  # include scored and unscored
+    scores = df['score'].dropna()
+    scores = scores[(scores >= 1) & (scores <= 10)]
+
+    if len(scores) > 0:
+        # Count scores from 1 to 10
+        freq = scores.round().astype(int).value_counts().reindex(range(1, 11), fill_value=0).sort_index()
+        
+        x = list(freq.index)
+        y = list(freq.values)
+
+        plt.clt()
+        plt.bar(x, y)
+        plt.title("Score Distribution (1 to 10)")
+        plt.xlabel("Score")
+        plt.ylabel("Prompt Count")
+        plt.xticks(range(1, 11))
+        plt.yticks(range(0, total_prompts + 1))
+        plt.xlim(0.5, 10.5)
+        plt.ylim(0, total_prompts)  # y-axis goes up to total rows
+        plt.show()
+    else:
+        print("No score data to display.")
+# ===================================================
+
+
 """
 if __name__ == "__main__":
-    display_injections("success_db.csv")
+    # display_results("success_db.csv")
+    display_graph("prompts-dev.csv")
 """

@@ -135,7 +135,7 @@ def reset_success(file_path="success_db.csv"):
 
 
 
-# ============ Exists program after set number of successful prompts found
+# ============ Exists program after set number of successful prompts found ============
 def check_for_success(success_count):
     if os.path.exists("success_db.csv"):
         try:
@@ -157,9 +157,11 @@ def check_for_success(success_count):
         print(Fore.GREEN + "\nInjection Success - Generating Results") # Format Better
         display_results("success_db.csv")
         sys.exit(0)
+# =====================================================================================
+
+
 
 # ============ Main Execution ============
-
 def main():
     
     file_path = "prompts-dev.csv" # SEED + PROMPTS CSV
@@ -183,13 +185,14 @@ def main():
         print("Invalid URL. Must start with http:// or https://")
         sys.exit(1)
     
-    print(f"[+] Launching browser and loading URL: {url}")
+    print(f"Launching browser and loading URL: {url}")
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-gpu')
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
+    # ============ Discovery phase ============
     try:
         print(Fore.CYAN + "\nDISCOVERY PHASE\n")
 
@@ -251,7 +254,8 @@ def main():
 
         bo = BayesianOptimizer()
 
-        # ============ BO Execution Loop ============
+
+        # ============ Injection/BO Execution Loop ============
         for cycle in range(1, 21): # Change to CLI arg - how many cycles of BO before quitting
             print(Fore.CYAN + f"\nCYCLE {cycle}\n")
             
@@ -284,6 +288,7 @@ def main():
 
             check_for_success(0) # Checks if program found set successful prompts - No need to pass this zero
 
+
             # ============ BO Optimization Phase ============
             print(Fore.CYAN + "\nBO OPTIMIZATION PHASE\n")
             new_prompts = bo.run_optimization_cycle(
@@ -308,6 +313,7 @@ def main():
                 print(Fore.RED + "No new prompts generated, Closing down for stealth and generating results") # Implement better way of dealing with 0 scores
                 display_results("success_db.csv")
                 sys.exit(0)
+                # Retry system prompts? no this wont work as could be already in BO cycle
 
             # check_for_success(0) Dont think i need this
 
@@ -315,7 +321,6 @@ def main():
         print(f"Error occurred: {e}")
     finally:
         driver.quit()
-    
 
 if __name__ == "__main__":
     main()
