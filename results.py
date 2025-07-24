@@ -88,19 +88,16 @@ def display_results(csv_path, max_rows=100):
 def display_graph(csv_path):
     df = pd.read_csv(csv_path)
 
-    # Convert 'tested' to bool
     df['tested'] = df['tested'].astype(str).str.lower().isin(['true', '1', 'yes'])
 
-    # Clean 'score' column
     df['score'] = pd.to_numeric(df['score'], errors='coerce')
 
     print("\n--- Distribution of Scores ---")
-    total_prompts = len(df)  # include scored and unscored
+    total_prompts = len(df)
     scores = df['score'].dropna()
     scores = scores[(scores >= 1) & (scores <= 10)]
 
     if len(scores) > 0:
-        # Count scores from 1 to 10
         freq = scores.round().astype(int).value_counts().reindex(range(1, 11), fill_value=0).sort_index()
         
         x = list(freq.index)
@@ -114,7 +111,7 @@ def display_graph(csv_path):
         plt.xticks(range(1, 11))
         plt.yticks(range(0, total_prompts + 1))
         plt.xlim(0.5, 10.5)
-        plt.ylim(0, total_prompts)  # y-axis goes up to total rows
+        plt.ylim(0, total_prompts)
         plt.show()
     else:
         print("No score data to display.")
