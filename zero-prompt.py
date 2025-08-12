@@ -5,6 +5,7 @@ Date: 23/06/2025
 Description: Main CLI entry point, Main execution loop contained here
 """
 
+
 # ============ Imports ============
 import sys
 import re
@@ -29,6 +30,8 @@ import pandas as pd
 import numpy as np
 
 from results import display_results
+
+import argparse
 # =================================
 
 
@@ -40,6 +43,16 @@ def print_banner():
     print("\n\n" + Fore.CYAN + ascii_art + "\n\n")
 
 
+"""
+# CLI Args (apart from --reset and url)
+# Needs input validation
+p = argparse.ArgumentParser()
+p.add_argument("sc", type=int) # Success Count (Target number of successful prompts)
+p.add_argument("st", type=int) # Success Threshold (Minimum value to define successful prompt)
+p.add_argument("cr", type=int) # Candidate Range (Range of scores of prompts that can be mutated)
+p.add_argument("cs", type=int) # Candidate Selected (Number of BO selected mutations to add to dataset)
+args = p.parse_args()
+"""
 
 # =========== Load untested prompts ===========
 def load_untested_prompts(file_path):
@@ -136,7 +149,7 @@ def reset_success(file_path="success_db.csv"):
 
 
 # ============ Exists program after set number of successful prompts found ============
-def check_for_success(success_count):
+def check_for_success(success_count, cycle):
     if os.path.exists("success_db.csv"):
         try:
             success_df = pd.read_csv("success_db.csv")
@@ -153,9 +166,9 @@ def check_for_success(success_count):
     else:
         success_count = 0
                 
-    if success_count >= 3: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
+    if success_count >= 5: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
         print(Fore.GREEN + "\nInjection Success - Generating Results") # Format Better
-        display_results("success_db.csv")
+        display_results("success_db.csv", cycle)
         sys.exit(0)
 # =====================================================================================
 
@@ -191,6 +204,7 @@ def main():
     options.add_argument('--disable-gpu')
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
 
     # ============ Discovery phase ============
     try:
@@ -256,7 +270,7 @@ def main():
 
 
         # ============ Injection/BO Execution Loop ============
-        for cycle in range(1, 21): # Change to CLI arg - how many cycles of BO before quitting
+        for cycle in range(1, 11): # Change to CLI arg - how many cycles of BO before quitting
             print(Fore.CYAN + f"\nCYCLE {cycle}\n")
             
             # Injects new round of untested prompts
@@ -286,7 +300,7 @@ def main():
                                 index=False)
                 print(Fore.GREEN + f"Found {len(successes)} successful prompts")
 
-            check_for_success(0) # Checks if program found set successful prompts - No need to pass this zero
+            check_for_success(0, cycle) # Checks if program found set successful prompts - No need to pass this zero so redundant
 
 
             # ============ BO Optimization Phase ============
@@ -311,7 +325,7 @@ def main():
                 print(f"Added {len(new_prompts)} BO-optimized prompts")
             else:
                 print(Fore.RED + "No new prompts generated, Closing down for stealth and generating results") # Implement better way of dealing with 0 scores
-                display_results("success_db.csv")
+                display_results("success_db.csv", cycle)
                 sys.exit(0)
                 # Retry system prompts? no this wont work as could be already in BO cycle
 

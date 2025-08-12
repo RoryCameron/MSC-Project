@@ -46,7 +46,7 @@ class BayesianOptimizer:
             df = pd.read_csv(prompts_dev_path)
             tested = df[(df['tested'] == 'yes') & (df['score'].notna())]
             
-            if len(tested) < 5:
+            if len(tested) < 5: # Means always tested
                 return False
                 
             X = self.embedder.encode(tested['prompt'].tolist())
@@ -69,7 +69,7 @@ class BayesianOptimizer:
         df['score'] = pd.to_numeric(df['score'], errors='coerce')
         df = df.dropna(subset=['score'])
 
-        candidates = df[(df['score'] >= 1) & (df['score'] <= 10)] # Change this for what range of prompts are mutated
+        candidates = df[(df['score'] >= 1) & (df['score'] < 8)] # Change this for what range of prompts are mutated
         
         # 2. Call mutator.py for each candidate
         mutations = []
@@ -85,7 +85,6 @@ class BayesianOptimizer:
             # print(mutated)
             # print(Fore.RED + "TEST: MUTATED PROMPTS IN OPTIMIZER " + mutated)
             
-            # This section is causing some syntax errors, needs fixing
             if isinstance(mutated, str):
                 try:
                     # Try parsing first in case it's a clean list string
@@ -100,7 +99,7 @@ class BayesianOptimizer:
                             if p.strip()
                         ]
                 except Exception as e:
-                    print(f"Failed to parse mutated string: {e}") # Seems to throw numerous errors
+                    print(f"Failed to parse mutated string: {e}")
                     mutated = [
                         p.strip()
                         for p in mutated.split('"""')
@@ -133,10 +132,13 @@ class BayesianOptimizer:
 
         #print(Fore.RED + "TEST: BO SELECT BEST")
 
-        # Select top candidates using UCB
+        # if model not trained yet
+        """
         if not self.model:
-            return prompts[:3] # Change using CLI arg - selects top 3 prompts
-            
+            return prompts[:3]
+        """
+        
+        # Select top candidates using UCB 
         X = self.embedder.encode(prompts)
         means, stds = self.model.predict(X, return_std=True)
-        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-3:]] # Change using CLI arg - selects top 3 prompts
+        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-5:]] # Change using CLI arg - selects top  prompts
