@@ -149,7 +149,7 @@ def reset_success(file_path="success_db.csv"):
 
 
 # ============ Exists program after set number of successful prompts found ============
-def check_for_success(success_count, cycle):
+def check_for_success(success_count, success_target, cycle):
     if os.path.exists("success_db.csv"):
         try:
             success_df = pd.read_csv("success_db.csv")
@@ -166,10 +166,12 @@ def check_for_success(success_count, cycle):
     else:
         success_count = 0
                 
-    if success_count >= 5: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
+    if success_count >= success_target: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
         print(Fore.GREEN + "\nInjection Success - Generating Results") # Format Better
         display_results("success_db.csv", cycle)
         sys.exit(0)
+
+    # ADD line above checking if cycles equals cycle arg, to call results if cycles reached max limit
 # =====================================================================================
 
 
@@ -179,26 +181,51 @@ def main():
     
     file_path = "prompts-dev.csv" # SEED + PROMPTS CSV
 
+
+
+    # ============ CLI Arguements ============
+    parser = argparse.ArgumentParser(description="ZeroPrompt CLI")
+    parser.add_argument("url", type=str, help="Target URL (must start with http:// or https://)")
+    parser.add_argument("--sc", type=int, default=10, help="Target number of successful prompts")
+    parser.add_argument("--st", type=int, default=8, help="Minimum score to count as success")
+    parser.add_argument("--cr", type=int, default=9, help="Candidate range for mutation")
+    parser.add_argument("--cs", type=int, default=5, help="Number of BO-selected mutations")
+    parser.add_argument("--cycles", type=int, default=10, help="Max Bayesian Optimization cycles")
+    parser.add_argument("--reset", action="store_true", help="Reset all stored prompts and responses")
+    args = parser.parse_args()
+    # ========================================
+
+    if args.reset:
+        reset_seed_prompts(file_path)
+        reset_responses()
+        reset_success()
+        sys.exit(1)
+
+    # Original code commented out
+    """
     # Fix this to only 1 or 2 calls
     if "--reset" in sys.argv:
         reset_seed_prompts(file_path)
         reset_responses()
         reset_success()
         sys.exit(1)
+    """
 
-    print_banner()
-
+    """
     if len(sys.argv) < 2:
         print("Usage: python zeroPrompt.py <url>")
         sys.exit(1)
-
+    
     url = sys.argv[1]
+    """
 
-    if not re.match(r"^https?://", url):
+    if not re.match(r"^https?://", args.url): # added args.url
         print("Invalid URL. Must start with http:// or https://")
         sys.exit(1)
     
-    print(f"Launching browser and loading URL: {url}")
+    print_banner()
+
+    print(f"Launching browser and loading URL: {args.url}") # Added args.url
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-gpu')
@@ -211,10 +238,11 @@ def main():
         print(Fore.CYAN + "\nDISCOVERY PHASE\n")
 
         print("Discovering selectors...")
-        selectors = discover_selectors(driver, url)
+        selectors = discover_selectors(driver, args.url) # Added args.url
 
         if not selectors:
             print(Fore.RED + "Failed to discover any selectors")
+            sys.exit(1)
 
         print(Fore.GREEN + "Successfully found selectors")
 
@@ -270,7 +298,7 @@ def main():
 
 
         # ============ Injection/BO Execution Loop ============
-        for cycle in range(1, 11): # Change to CLI arg - how many cycles of BO before quitting
+        for cycle in range(1, args.cycles + 1): # Change to CLI arg - how many cycles of BO before quitting - added args.cycles
             print(Fore.CYAN + f"\nCYCLE {cycle}\n")
             
             # Injects new round of untested prompts
@@ -290,7 +318,7 @@ def main():
                 print(Fore.RED + f"Failed to load/clean responses.csv: {e}")
                 continue
 
-            successes = responses[responses['score'] >= 8] # Change to CLI arg - What value considered a success
+            successes = responses[responses['score'] >= args.st] # Change to CLI arg - What value considered a success - added args.st
 
             if not successes.empty:
                 write_header = not os.path.exists("success_db.csv")
@@ -300,12 +328,14 @@ def main():
                                 index=False)
                 print(Fore.GREEN + f"Found {len(successes)} successful prompts")
 
-            check_for_success(0, cycle) # Checks if program found set successful prompts - No need to pass this zero so redundant
+            check_for_success(0, args.sc, cycle) # Checks if program found set successful prompts - No need to pass this zero so redundant
 
 
             # ============ BO Optimization Phase ============
             print(Fore.CYAN + "\nBO OPTIMIZATION PHASE\n")
             new_prompts = bo.run_optimization_cycle(
+                candidate_range=args.cr, # added args.cr
+                BO_selects=args.cs,
                 responses_path="responses.csv",
                 prompts_dev_path="prompts-dev.csv"
             )
@@ -329,7 +359,7 @@ def main():
                 sys.exit(0)
                 # Retry system prompts? no this wont work as could be already in BO cycle
 
-            # check_for_success(0) Dont think i need this
+            # check_for_success(0, cycle) # Dont think i need this, but seems to not run results if hit end of cycles
 
     except Exception as e:
         print(f"Error occurred: {e}")

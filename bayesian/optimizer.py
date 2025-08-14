@@ -59,7 +59,7 @@ class BayesianOptimizer:
             return False
 
 
-    def run_optimization_cycle(self, responses_path: str, prompts_dev_path: str) -> List[Tuple[str, str]]:
+    def run_optimization_cycle(self, candidate_range, BO_selects, responses_path: str, prompts_dev_path: str) -> List[Tuple[str, str]]:
 
         # print(Fore.RED + "TEST: BO OPTIMIZATION CYCLE")
 
@@ -69,7 +69,7 @@ class BayesianOptimizer:
         df['score'] = pd.to_numeric(df['score'], errors='coerce')
         df = df.dropna(subset=['score'])
 
-        candidates = df[(df['score'] >= 1) & (df['score'] < 8)] # Change this for what range of prompts are mutated
+        candidates = df[(df['score'] >= 1) & (df['score'] < candidate_range)] # Change this for what range of prompts are mutated - added args.cr cli
         
         # 2. Call mutator.py for each candidate
         mutations = []
@@ -124,11 +124,11 @@ class BayesianOptimizer:
         # 3. Bayesian Selection
         if self.train(prompts_dev_path) and mutations:
             prompts = [m[0] for m in mutations]
-            selected = self.select_best(prompts)
+            selected = self.select_best(BO_selects, prompts)
             return [(p, cat) for p, (_, cat) in zip(selected, mutations) if p in selected]
         return []
 
-    def select_best(self, prompts: List[str]) -> List[str]:
+    def select_best(self, BO_selects, prompts: List[str]) -> List[str]:
 
         #print(Fore.RED + "TEST: BO SELECT BEST")
 
@@ -141,4 +141,4 @@ class BayesianOptimizer:
         # Select top candidates using UCB 
         X = self.embedder.encode(prompts)
         means, stds = self.model.predict(X, return_std=True)
-        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-5:]] # Change using CLI arg - selects top  prompts
+        return [prompts[i] for i in np.argsort(means + 2.0 * stds)[-(BO_selects):]] # Change using CLI arg - selects top  prompts

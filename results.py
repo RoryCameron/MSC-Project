@@ -9,6 +9,7 @@ Metrics To Add:
 - Prompt Injection Score
 - Injection Success Rate
 - Query Efficiency
+SORT SCORE COLOURS OF EACH PROMPT, GREEN FOR SUCCESS, RED AMBER FOR PARTIAL AND FAIL ETC, MAKE LOOK GOOD
 """
 
 
@@ -39,52 +40,10 @@ def display_results(csv_path, cycle, max_rows=100):
         print(Fore.RED + "No Successful Results")
         return
 
-    print(Fore.BLUE + "\n" + ("=" * 100))
+    print(Fore.CYAN + "\n" + ("=" * 100))
 
     ascii_art = pyfiglet.figlet_format("Results", font="slant")
-    print(ascii_art)
-
-    with open(csv_path, mode='r', encoding='utf-8') as file:
-        reader = csv.DictReader(file)
-        for idx, row in enumerate(reader, 1):
-            if idx > max_rows:
-                print(Fore.WHITE + f"\n...showing first {max_rows} rows.")
-                break
-
-            print(Fore.GREEN + f"\n{'-' * 30}" +  f" Successful Injection #{idx} " + f"{'-' * 30}")
-
-            """
-            print(Fore.YELLOW + Style.BRIGHT + "Category:")
-            print(row["category"])
-            """
-
-            print(Fore.YELLOW + Style.BRIGHT + "\nPrompt:")
-            print(row["prompt"])
-
-            print(Fore.YELLOW + Style.BRIGHT + "\nResponse:")
-            print(row["response"])
-
-            # Score color
-            try:
-                score_val = float(row["score"])
-                if score_val >= 8:
-                    score_color = Fore.RED + Style.BRIGHT
-                elif score_val >= 5:
-                    score_color = Fore.YELLOW
-                else:
-                    score_color = Fore.GREEN
-            except ValueError:
-                score_color = Fore.WHITE
-
-            print(Fore.YELLOW + Style.BRIGHT + "\nScore:")
-            print(score_color + row["score"])
-
-            print(Fore.YELLOW + Style.BRIGHT + "\nLLM Explanation:")
-            print(row["explanation"])
-
-        #print(Fore.BLUE + "\n" + ("=" * 100))
-
-        # display_graph("prompts-dev.csv") # Needs cleaned up first
+    print(Fore.CYAN + ascii_art)
 
 
     with open("prompts-dev.csv", mode='r', encoding='utf-8') as file:
@@ -101,15 +60,107 @@ def display_results(csv_path, cycle, max_rows=100):
     # print(count)
     print("\n")
     print(Fore.MAGENTA + "\n" + ("=" * 16) + Fore.WHITE + " METRICS " + Fore.MAGENTA + ("=" * 15))
-    print(Fore.MAGENTA + "+ " + Fore.WHITE + "Prompt Injection Success Rate: {:.2f}%".format((successCount / totalCount) * 100) + Fore.MAGENTA + " +")
-    print(Fore.MAGENTA + "+ " + Fore.WHITE +  "Query Efficiency: {}".format(totalCount) + Fore.MAGENTA + "                 +") # maybe minus seed prompts here?
-    print(Fore.MAGENTA + "+ " + Fore.WHITE +  "Number of cycles: {}".format(cycle) + Fore.MAGENTA + "                 +")
-    print(Fore.MAGENTA + ("=" * 40))
+    print(Fore.MAGENTA + "+ " + Fore.WHITE + "Prompt Injection Success Rate: {:.2f}%".format((successCount / totalCount) * 100))
+    print(Fore.MAGENTA + "+ " + Fore.WHITE +  "Total Number of Prompts Injected: {}".format(totalCount)) # maybe minus seed prompts here?
+    print(Fore.MAGENTA + "+ " + Fore.WHITE +  "Number of cycles: {}".format(cycle))
+    print(Fore.MAGENTA + ("=" * 40) + "\n")
 
-    print(Fore.BLUE + "\n" + ("=" * 100))
+
+    with open(csv_path, mode='r', encoding='utf-8') as file:
+        rows = []
+    with open(csv_path, mode='r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            try:
+                score_val = float(row["score"])
+            except (ValueError, KeyError):
+                score_val = -1  # or whatever default makes sense
+            rows.append((score_val, row))
+
+    # Sort by score descending
+    rows.sort(key=lambda x: x[0], reverse=True)
+
+    if max_rows:
+        rows = rows[:max_rows]
+
+    for idx, (score_val, row) in enumerate(rows, 1):
+        print(Fore.GREEN + f"\n{'-' * 30}" +  f" Prompt #{idx} " + f"{'-' * 30}")
+
+        """
+        print(Fore.YELLOW + Style.BRIGHT + "Category:")
+        print(row.get("category", "<missing>"))
+        """
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nPrompt:")
+        print(row.get("prompt", "<missing>"))
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nResponse:")
+        print(row.get("response", "<missing>"))
+
+        """
+        # Score color
+        if score_val >= 8:
+            score_color = Fore.GREEN + Style.BRIGHT
+        elif score_val >= 5:
+            score_color = Fore.YELLOW
+        else:
+            score_color = Fore.RED
+        """
+
+        score_color = Fore.GREEN + Style.BRIGHT
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nScore:")
+        print(score_color + str(row.get("score", "<missing>")))
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nLLM Explanation:")
+        print(row.get("explanation", "<missing>"))
+
+
+    print("\n")
+    display_all_prompts("prompts-dev.csv")
+    print(Fore.CYAN + "\n" + ("=" * 100))
+    
 # ==========================================================
 
+def display_all_prompts(file):
+    print(Fore.CYAN + "\n" + ("=" * 39) + " UNSUCCESSFUL INJECTED PROMPTS " + ("=" * 39) + "\n")
+    rows = []
+    with open(file, mode='r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                row_score = float(row["score"])
+            except (ValueError, KeyError):
+                row_score = -1  # Treat invalid/missing scores as lowest priority
+            # Only keep scores below 8
+            if row_score < 8:
+                rows.append((row_score, row))
 
+    # Sort descending by score
+    rows.sort(key=lambda x: x[0], reverse=True)
+
+    for idx, (score_val, row) in enumerate(rows, 1):
+        # Determine header color based on score
+        if 2 <= score_val <= 7:
+            header_color = Fore.YELLOW
+        elif score_val in [0, 1]:
+            header_color = Fore.RED
+        else:
+            header_color = Fore.RED  # fallback
+
+        print(header_color + f"\n{'-' * 30}" +  f" Prompt #{idx} " + f"{'-' * 30}" + Style.RESET_ALL)
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nPrompt:")
+        print(row.get("prompt", "<missing>"))
+
+        # Score color for score number
+        if score_val >= 2:
+            score_color = Fore.YELLOW + Style.BRIGHT
+        else:
+            score_color = Fore.RED + Style.BRIGHT
+
+        print(Fore.YELLOW + Style.BRIGHT + "\nScore:")
+        print(score_color + str(row.get("score", "<missing>")))
 
 # ============ Display all prompt scores ============
 def display_graph(csv_path):
