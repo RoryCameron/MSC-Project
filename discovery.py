@@ -57,6 +57,13 @@ From the given DOM, extract a JSON object specifying:
 - input_selector: CSS selector string for the chatbot user input field.
 - send_selector: CSS selector string for the chatbot send button.
 - response_selector: CSS selector string for the container holding chatbot responses.
+- bot_response_selector: CSS selector string for the individual bot responses, not the full chat container. This should correspond to a single message sent by the chatbot.
+- toggle_selector: CSS selector for chat toggle button.
+- toggle_state: String either "open" or "closed". "open" if the chatbot is initially visible/accessible on the target website, and no button has to be clicked to access it. "closed" if the chatbot is not initially visible/accessible on the target website, and a button has to be clicked to access it.
+
+Rules:
+- Only include toggle_selector and toggle_state if you find a button that expands/hides the chatbot.
+- If chat is always visible with no toggle button, omit toggle_selector and toggle_state entirely.
 
 DOM snapshot:
 {dom[:8000]}
