@@ -36,6 +36,19 @@ def launch_browser(url):
 # ============ Send prompts to chatbot and get responses ============
 def send_message_and_get_response(driver, selectors, message, timeout=10):
 
+    
+    input_selector = selectors["input_selector"]
+    send_selector = selectors["send_selector"]
+    response_selector = selectors["response_selector"]
+    bot_response_selector = selectors["bot_response_selector"]
+
+    print("\nSELECTORS TEST\n")
+    print(input_selector)
+    print(send_selector)
+    print(response_selector)
+    print(bot_response_selector)
+    
+
     toggle_state = selectors.get("toggle_state")
 
     if "toggle_selector" in selectors:
@@ -76,8 +89,15 @@ def send_message_and_get_response(driver, selectors, message, timeout=10):
     send_selector = selectors["send_selector"]
     response_selector = selectors["response_selector"]
     bot_response_selector = selectors["bot_response_selector"]
-    #toggle_selector = selectors["input_selector"]
+    #toggle_selector = selectors["toggle_selector"]
     #toggle_state = selectors["input_selector"]
+
+    print("\nSELECTORS TEST\n")
+    print(input_selector)
+    print(send_selector)
+    print(response_selector)
+    print(bot_response_selector)
+    #print(toggle_selector)
     
     # Input Prompt
     input_elem = driver.find_element("css selector", input_selector)
@@ -92,18 +112,18 @@ def send_message_and_get_response(driver, selectors, message, timeout=10):
     count_before = len(bot_messages_before)
 
     send_btn.click()
-    print("Submit Button Pressed")
+    # print("Submit Button Pressed")
 
     # print("Sleeping")
     # time.sleep(10)
     
     # Some chatbots dont add new elements for the chatbot, so need to see if anything new has changed at all
-    print("Attempting WebDriverWait . . . ")
+    # print("Attempting WebDriverWait . . . ")
     WebDriverWait(driver, timeout).until(
         lambda d: len(d.find_element("css selector", response_selector)
                       .find_elements("css selector", bot_response_selector)) > count_before
     )
-    print("Made it pased WebDriverWait")
+    # print("Made it pased WebDriverWait")
 
     """
     lambda d: len(d.find_element("css selector", response_selector)
@@ -112,8 +132,8 @@ def send_message_and_get_response(driver, selectors, message, timeout=10):
 
     response_container = driver.find_element("css selector", response_selector)
     bot_messages_after = response_container.find_elements("css selector", bot_response_selector)
-    print("Calcuated after element count")
+    # print("Calcuated after element count")
     latest_bot_message = bot_messages_after[-1].text.strip()
-    print("Stripped Message")
+    # print("Stripped Message")
     return latest_bot_message
 # ===================================================================

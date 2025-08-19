@@ -1,8 +1,8 @@
 """
 File: chatbot.py
 Author: Rory Cameron
-Date: 23/06/2025
-Description: Basic implementation of GPT chatbot. Uses GPT generated system prompt to imitate a real customer service bot with system guardrails
+Date: 14/08/2025
+Description: More realistic implementation of GPT chatbot. Uses GPT generated system prompt to imitate a real customer service bot with system guardrails
 """
 
 
@@ -74,7 +74,7 @@ def chat():
 
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=session["history"],
             temperature=0.7
         )

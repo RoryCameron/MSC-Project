@@ -51,7 +51,8 @@ def discover_selectors(driver, url):
 
     print("Analyzing DOM with GPT to find chatbot selectors...")
     prompt = f"""
-You're a security tester analyzing the DOM of a webpage. 
+You're a security tester analyzing the DOM of a webpage.
+Your goal is to extract selectors for a chatbot
 From the given DOM, extract a JSON object specifying:
 
 - input_selector: CSS selector string for the chatbot user input field.
@@ -64,6 +65,11 @@ From the given DOM, extract a JSON object specifying:
 Rules:
 - Only include toggle_selector and toggle_state if you find a button that expands/hides the chatbot.
 - If chat is always visible with no toggle button, omit toggle_selector and toggle_state entirely.
+- Ignore all everything unrelated to the chatbhot, such as UI elements such as site search bars, newsletter signups, forms, or non chat-bot inputs.
+- Ignore search bars, newsletter fields, login forms, and anything outside the chatbot.
+- No guessing generic names like .response-container, .bot-response, .chat-toggle unless they actually exist in the DOM
+- DO NOT MAKE UP CHATBOT SELECTORS, THEY MUST BE EXACT AND EXIST IN THE DOM. DO NOT GET DISTRACTED BY OTHER PARTS OF THE PAGE, LOOK FOR THINGS DIRECTLY RELATING TO A CHATBOT
+- Scope check: For input, send, and response selectors, only choose elements inside the chatbot container. Ignore unrelated inputs/buttons anywhere else on the page.
 
 DOM snapshot:
 {dom[:8000]}

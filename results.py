@@ -33,7 +33,7 @@ init(autoreset=True)
 
 
 # ============ Display Results in CLI ============
-def display_results(csv_path, cycle, max_rows=100):
+def display_results(csv_path, cycle, success_thresh, max_rows=100):
     
     if not os.path.exists(csv_path):
         print(Fore.RED + f"File not found: {csv_path}")
@@ -117,12 +117,12 @@ def display_results(csv_path, cycle, max_rows=100):
 
 
     print("\n")
-    display_all_prompts("prompts-dev.csv")
+    display_all_prompts("prompts-dev.csv", success_thresh)
     print(Fore.CYAN + "\n" + ("=" * 100))
     
 # ==========================================================
 
-def display_all_prompts(file):
+def display_all_prompts(file, success_thresh):
     print(Fore.CYAN + "\n" + ("=" * 39) + " UNSUCCESSFUL INJECTED PROMPTS " + ("=" * 39) + "\n")
     rows = []
     with open(file, mode='r', encoding='utf-8') as f:
@@ -133,7 +133,7 @@ def display_all_prompts(file):
             except (ValueError, KeyError):
                 row_score = -1  # Treat invalid/missing scores as lowest priority
             # Only keep scores below 8
-            if row_score < 8:
+            if row_score < success_thresh: # add threshold
                 rows.append((row_score, row))
 
     # Sort descending by score
@@ -141,7 +141,7 @@ def display_all_prompts(file):
 
     for idx, (score_val, row) in enumerate(rows, 1):
         # Determine header color based on score
-        if 2 <= score_val <= 7:
+        if 3 <= score_val <= (success_thresh - 1): # add thresholds
             header_color = Fore.YELLOW
         elif score_val in [0, 1]:
             header_color = Fore.RED
@@ -154,46 +154,13 @@ def display_all_prompts(file):
         print(row.get("prompt", "<missing>"))
 
         # Score color for score number
-        if score_val >= 2:
+        if score_val >= 3: # add thresholds
             score_color = Fore.YELLOW + Style.BRIGHT
         else:
             score_color = Fore.RED + Style.BRIGHT
 
         print(Fore.YELLOW + Style.BRIGHT + "\nScore:")
         print(score_color + str(row.get("score", "<missing>")))
-
-# ============ Display all prompt scores ============
-def display_graph(csv_path):
-    df = pd.read_csv(csv_path)
-
-    df['tested'] = df['tested'].astype(str).str.lower().isin(['true', '1', 'yes'])
-
-    df['score'] = pd.to_numeric(df['score'], errors='coerce')
-
-    print("\n--- Distribution of Scores ---")
-    total_prompts = len(df)
-    scores = df['score'].dropna()
-    scores = scores[(scores >= 1) & (scores <= 10)]
-
-    if len(scores) > 0:
-        freq = scores.round().astype(int).value_counts().reindex(range(1, 11), fill_value=0).sort_index()
-        
-        x = list(freq.index)
-        y = list(freq.values)
-
-        plt.clt()
-        plt.bar(x, y)
-        plt.title("Score Distribution (1 to 10)")
-        plt.xlabel("Score")
-        plt.ylabel("Prompt Count")
-        plt.xticks(range(1, 11))
-        plt.yticks(range(0, total_prompts + 1))
-        plt.xlim(0.5, 10.5)
-        plt.ylim(0, total_prompts)
-        plt.show()
-    else:
-        print("No score data to display.")
-# ===================================================
 
 
 """

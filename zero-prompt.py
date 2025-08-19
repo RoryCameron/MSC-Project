@@ -149,7 +149,8 @@ def reset_success(file_path="success_db.csv"):
 
 
 # ============ Exists program after set number of successful prompts found ============
-def check_for_success(success_count, success_target, cycle):
+def check_for_success(success_count, success_target, cycle, success_thresh):
+    print("Check for results called")
     if os.path.exists("success_db.csv"):
         try:
             success_df = pd.read_csv("success_db.csv")
@@ -159,7 +160,7 @@ def check_for_success(success_count, success_target, cycle):
                         
             success_df['score'] = pd.to_numeric(success_df['score'], errors='coerce')
                         
-            success_count = len(success_df[success_df['score'] >= 8].dropna())
+            success_count = len(success_df[success_df['score'] >= success_thresh].dropna())
         except Exception as e:
             print(f"Error reading success file: {e}")
             success_count = 0
@@ -168,7 +169,7 @@ def check_for_success(success_count, success_target, cycle):
                 
     if success_count >= success_target: # Change to CLI arg - BO Cycle stops if this many succesful prompts exist
         print(Fore.GREEN + "\nInjection Success - Generating Results") # Format Better
-        display_results("success_db.csv", cycle)
+        display_results("success_db.csv", cycle, success_thresh)
         sys.exit(0)
 
     # ADD line above checking if cycles equals cycle arg, to call results if cycles reached max limit
@@ -187,7 +188,7 @@ def main():
     parser = argparse.ArgumentParser(description="ZeroPrompt CLI")
     parser.add_argument("url", type=str, help="Target URL (must start with http:// or https://)")
     parser.add_argument("--sc", type=int, default=10, help="Target number of successful prompts")
-    parser.add_argument("--st", type=int, default=8, help="Minimum score to count as success")
+    parser.add_argument("--st", type=int, default=7, help="Minimum score to count as success")
     parser.add_argument("--cr", type=int, default=9, help="Candidate range for mutation")
     parser.add_argument("--cs", type=int, default=5, help="Number of BO-selected mutations")
     parser.add_argument("--cycles", type=int, default=10, help="Max Bayesian Optimization cycles")
@@ -328,7 +329,7 @@ def main():
                                 index=False)
                 print(Fore.GREEN + f"Found {len(successes)} successful prompts")
 
-            check_for_success(0, args.sc, cycle) # Checks if program found set successful prompts - No need to pass this zero so redundant
+            check_for_success(0, args.sc, cycle, args.st) # Checks if program found set successful prompts - No need to pass this zero so redundant
 
 
             # ============ BO Optimization Phase ============
@@ -355,7 +356,7 @@ def main():
                 print(f"Added {len(new_prompts)} BO-optimized prompts")
             else:
                 print(Fore.RED + "No new prompts generated, Closing down for stealth and generating results") # Implement better way of dealing with 0 scores
-                display_results("success_db.csv", cycle)
+                display_results("success_db.csv", cycle, args.st)
                 sys.exit(0)
                 # Retry system prompts? no this wont work as could be already in BO cycle
 
